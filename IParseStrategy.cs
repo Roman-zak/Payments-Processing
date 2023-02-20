@@ -1,9 +1,10 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 
 namespace Payments_Processing
 {
     public interface IParseStrategy
     {
-        UserTransactionsData parce(string file_path); 
+        List<City> parce(string file_path); 
     }
 }

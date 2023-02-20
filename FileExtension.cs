@@ -8,6 +8,6 @@ namespace Payments_Processing
 {
     internal enum FileExtension
     {
-        TXT, CVV
+        TXT, CSV
     }
 }

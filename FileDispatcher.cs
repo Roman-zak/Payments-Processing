@@ -42,7 +42,7 @@ namespace Payments_Processing
             watchers = new Dictionary<string, FileSystemWatcher>();
 
             watchers.Add("*.txt", new FileSystemWatcher(ConfigurationManager.AppSettings["readDirectory"]));
-            watchers.Add("*.cvv", new FileSystemWatcher(ConfigurationManager.AppSettings["readDirectory"]));
+            watchers.Add("*.csv", new FileSystemWatcher(ConfigurationManager.AppSettings["readDirectory"]));
 
             watchers.Select(w=> {
                 w.Value.NotifyFilter =NotifyFilters.Attributes
@@ -73,7 +73,7 @@ namespace Payments_Processing
         {
             Console.WriteLine("created");
             string newFilePath = e.FullPath;
-            TransactionProcesser processer = new TransactionProcesser(newFilePath);
+            TransactionProcesser processer = new TransactionProcesser(new TransactionJsonWriter(), newFilePath);
             Thread thread = new Thread(new ThreadStart(processer.processFile));
             thread.Start();
         }

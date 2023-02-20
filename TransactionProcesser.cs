@@ -14,10 +14,11 @@ namespace Payments_Processing
         private IParseStrategy parser;
         private IJsonWriter jsonWriter;
 
-        public TransactionProcesser(string filePath)
+        public TransactionProcesser(IJsonWriter jsonWriter, string filePath)
         {
             WriteDirectory = ConfigurationManager.AppSettings["writeDirectory"];
             this.FilePath = filePath;
+            this.jsonWriter = jsonWriter;
         }
 
         public string WriteDirectory { get; set; }
@@ -27,13 +28,14 @@ namespace Payments_Processing
         public void processFile()
         {
             mapParserToFile(FilePath);
-           // UserTransactionsData userTransactionsData = parser.parce(FilePath);
+            List<City> userTransactionsData = parser.parce(FilePath);
 
             string writeFilePath = GetWriteFilePath();
             
-        //    jsonWriter.writeToJson(ref writeFilePath, userTransactionsData);
+            jsonWriter.writeToJson(ref writeFilePath, userTransactionsData);
             TodayFileNumber++;
-            File.WriteAllText(writeFilePath, "yeah!");
+            Console.WriteLine(writeFilePath + " should be written");
+          //  File.WriteAllText(writeFilePath, "yeah!");
         }
         private string GetWriteFilePath()
         {
@@ -52,7 +54,7 @@ namespace Payments_Processing
             switch (extension)
             {
                 case ".txt": parser = new TxtParser(); break;
-                case ".cvv": parser = new CvvParser(); break;
+                case ".csv": parser = new CsvParser(); break;
             }
             this.setParser(parser);
         }

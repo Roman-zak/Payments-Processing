@@ -51,6 +51,9 @@
     <StartupObject>Payments_Processing.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.13.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Configuration.Install" />
@@ -65,7 +68,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CvvParser.cs" />
+    <Compile Include="CsvParser.cs" />
+    <Compile Include="models\Payer.cs" />
+    <Compile Include="models\Service.cs" />
     <Compile Include="FileExtension.cs" />
     <Compile Include="IJsonWriter.cs" />
     <Compile Include="IParseStrategy.cs" />
@@ -87,10 +92,11 @@
     <Compile Include="TransactionJsonWriter.cs" />
     <Compile Include="TransactionProcesser.cs" />
     <Compile Include="TxtParser.cs" />
-    <Compile Include="UserTransactionsData.cs" />
+    <Compile Include="models\City.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.8">
@@ -109,5 +115,6 @@
       <DependentUpon>ProjectInstaller.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
