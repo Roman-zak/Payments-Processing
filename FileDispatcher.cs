@@ -9,18 +9,15 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
 using System.Configuration;
-
+using System.Threading;
 
 namespace Payments_Processing
 {
     [RunInstaller(true)]
-    public partial class FileDispatcher : ServiceBase, ITransactionProcesser
+    public partial class FileDispatcher : ServiceBase
     {
-        private static FileSystemWatcher Watcher;
-        private static IParseStrategy Parser;
-        private static IJsonWriter JsonWriter;
-        private static string WriteDirectory;
-        private static uint todayFileNumber;
+        private static Dictionary<string, FileSystemWatcher> watchers;
+        public string ReadDirectory { get; set; }
 
         public FileDispatcher()
         {
@@ -40,11 +37,15 @@ namespace Payments_Processing
         }
         protected override void OnStart(string[] args)
         {
-            Watcher = new FileSystemWatcher(ConfigurationManager.AppSettings["readDirectory"]);
-            WriteDirectory = ConfigurationManager.AppSettings["writeDirectory"];
-            todayFileNumber = 0;
+            ReadDirectory = ConfigurationManager.AppSettings["readDirectory"];
 
-            Watcher.NotifyFilter = NotifyFilters.Attributes
+            watchers = new Dictionary<string, FileSystemWatcher>();
+
+            watchers.Add("*.txt", new FileSystemWatcher(ConfigurationManager.AppSettings["readDirectory"]));
+            watchers.Add("*.cvv", new FileSystemWatcher(ConfigurationManager.AppSettings["readDirectory"]));
+
+            watchers.Select(w=> {
+                w.Value.NotifyFilter =NotifyFilters.Attributes
                                  | NotifyFilters.CreationTime
                                  | NotifyFilters.DirectoryName
                                  | NotifyFilters.FileName
@@ -52,52 +53,30 @@ namespace Payments_Processing
                                  | NotifyFilters.LastWrite
                                  | NotifyFilters.Security
                                  | NotifyFilters.Size;
+                w.Value.Created += OnCreated;
+                w.Value.Error += OnError;
+                w.Value.Filter = w.Key;
+                w.Value.IncludeSubdirectories = true;
+                w.Value.EnableRaisingEvents = true;
 
-            Watcher.Changed += OnChanged;
-            Watcher.Created += OnCreated;
-            Watcher.Deleted += OnDeleted;
-            Watcher.Renamed += OnRenamed;
-            Watcher.Error += OnError;
-
-            Watcher.Filter = "*.txt";
-            Watcher.IncludeSubdirectories = true;
-            Watcher.EnableRaisingEvents = true;
+                return w;
+                }).ToDictionary(w => w.Key, w => w.Value);
+            
         }
 
         protected override void OnStop()
         {
-            Watcher.Dispose();
-        }
-
-        private static void OnChanged(object sender, FileSystemEventArgs e)
-        {
-            if (e.ChangeType != WatcherChangeTypes.Changed)
-            {
-                return;
-            }
-            Console.WriteLine($"Changed: {e.FullPath}");
+            watchers.Values.ToList().ForEach(w => w.Dispose());
         }
 
         private static void OnCreated(object sender, FileSystemEventArgs e)
         {
             Console.WriteLine("created");
-            string value = $"Created: {e.FullPath}";
-            UserTransactionsData userTransactionsData = Parser.parce(e.FullPath);
-            string writeFilePath=WriteDirectory + DateTime.UtcNow.Date.ToString("dd-MM-yyyy")+todayFileNumber;
-            JsonWriter.writeToJson(ref writeFilePath, userTransactionsData); 
-            File.WriteAllText("WriteText.txt", value);
+            string newFilePath = e.FullPath;
+            TransactionProcesser processer = new TransactionProcesser(newFilePath);
+            Thread thread = new Thread(new ThreadStart(processer.processFile));
+            thread.Start();
         }
-
-        private static void OnDeleted(object sender, FileSystemEventArgs e) =>
-            Console.WriteLine($"Deleted: {e.FullPath}");
-
-        private static void OnRenamed(object sender, RenamedEventArgs e)
-        {
-            Console.WriteLine($"Renamed:");
-            Console.WriteLine($"    Old: {e.OldFullPath}");
-            Console.WriteLine($"    New: {e.FullPath}");
-        }
-
         private static void OnError(object sender, ErrorEventArgs e) =>
             PrintException(e.GetException());
 
@@ -113,9 +92,6 @@ namespace Payments_Processing
             }
         }
 
-        public void setParser(IParseStrategy parseStrategy)
-        {
-           Parser = parseStrategy;
-        }
+
     }
 }
