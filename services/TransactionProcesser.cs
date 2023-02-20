@@ -16,12 +16,9 @@ namespace Payments_Processing
 
         public TransactionProcesser(IJsonWriter jsonWriter, string filePath)
         {
-            WriteDirectory = ConfigurationManager.AppSettings["writeDirectory"];
             this.FilePath = filePath;
             this.jsonWriter = jsonWriter;
         }
-
-        public string WriteDirectory { get; set; }
         public string FilePath { get; set; }
         public static int TodayFileNumber { get; set; }
 
@@ -34,12 +31,10 @@ namespace Payments_Processing
             
             jsonWriter.writeToJson(ref writeFilePath, userTransactionsData);
             TodayFileNumber++;
-            Console.WriteLine(writeFilePath + " should be written");
-          //  File.WriteAllText(writeFilePath, "yeah!");
         }
         private string GetWriteFilePath()
         {
-            string directory = WriteDirectory + "/" + DateTime.UtcNow.Date.ToString("dd-MM-yyyy") ;
+            string directory = FileDispatcher.WriteDirectory + "/" + DateTime.UtcNow.Date.ToString("MM-dd-yyyy") ;
             System.IO.Directory.CreateDirectory(directory);
             return  directory+"/"+ "output"+TodayFileNumber+".json";
         }

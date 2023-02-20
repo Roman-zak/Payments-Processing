@@ -17,8 +17,18 @@ namespace Payments_Processing
     public partial class FileDispatcher : ServiceBase
     {
         private static Dictionary<string, FileSystemWatcher> watchers;
-        public string ReadDirectory { get; set; }
+        private static object _lock = new object();
+        private Timer timer;
+        public static string ReadDirectory { get; set; }
+        public static string WriteDirectory { get; set; }
 
+        private static int _parsedFilesCount;
+
+        private static int _parsedLinesCount;
+
+        private static int _foundErrorsCount;
+
+        private static ISet<string> _invalidFiles;
         public FileDispatcher()
         {
             InitializeComponent();
@@ -38,6 +48,7 @@ namespace Payments_Processing
         protected override void OnStart(string[] args)
         {
             ReadDirectory = ConfigurationManager.AppSettings["readDirectory"];
+            WriteDirectory = ConfigurationManager.AppSettings["writeDirectory"];
 
             watchers = new Dictionary<string, FileSystemWatcher>();
 
@@ -61,20 +72,30 @@ namespace Payments_Processing
 
                 return w;
                 }).ToDictionary(w => w.Key, w => w.Value);
-            
+           
+            _invalidFiles=new HashSet<string>();
+
+            TimeSpan now = DateTime.Now.TimeOfDay;
+            TimeSpan dueTime = TimeSpan.FromHours(24) - now; // calculate time until next midnight
+            timer = new Timer(CreateMetaFile, dueTime, 15000, (int)TimeSpan.FromHours(24).TotalMilliseconds);
+
         }
 
         protected override void OnStop()
         {
             watchers.Values.ToList().ForEach(w => w.Dispose());
+
+            timer.Dispose();
         }
 
         private static void OnCreated(object sender, FileSystemEventArgs e)
         {
-            Console.WriteLine("created");
             string newFilePath = e.FullPath;
+
             TransactionProcesser processer = new TransactionProcesser(new TransactionJsonWriter(), newFilePath);
+
             Thread thread = new Thread(new ThreadStart(processer.processFile));
+
             thread.Start();
         }
         private static void OnError(object sender, ErrorEventArgs e) =>
@@ -91,7 +112,66 @@ namespace Payments_Processing
                 PrintException(ex.InnerException);
             }
         }
+        private static void CreateMetaFile(object source)
+        {
+            string metaFilePath = GetMetaFilePath();
 
+            using (StreamWriter writer = new StreamWriter(metaFilePath))
+            {
+                writer.WriteLine("parsed_files: " + _parsedFilesCount);
+                writer.WriteLine("parsed_lines: " + _parsedLinesCount);
+                writer.WriteLine("found_errors: " + _foundErrorsCount);
+                writer.Write("invalid_files: [");
+                writer.Write(String.Join(", ", _invalidFiles));
+                writer.Write("]");
+            }
+            resetMetadataCounters();
+        }
 
+        private static void resetMetadataCounters()
+        {
+            lock (_lock)
+            {
+                _parsedFilesCount = 0;
+                _parsedLinesCount = 0;
+                _foundErrorsCount = 0;
+                _invalidFiles.Clear();
+            }
+        }
+
+        private static string GetMetaFilePath()
+        {
+            string directory = WriteDirectory + "/" + DateTime.UtcNow.Date.ToString("MM-dd-yyyy");
+            System.IO.Directory.CreateDirectory(directory);
+            return directory+"/meta.log" ;
+        }
+        public static void incrementParsedFilesCount()
+        {
+            lock (_lock)
+            {
+                _parsedFilesCount++;
+            }
+        }
+        public static void incrementParsedLinesCount()
+        {
+            lock (_lock)
+            {
+                _parsedLinesCount++;
+            }
+        }
+        public static void incrementFoundErrorsCount()
+        {
+            lock (_lock)
+            {
+                _foundErrorsCount++;
+            }
+        }
+        public static void addInvalidFile(string invalidFilePath)
+        {
+            lock (_lock)
+            {
+                _invalidFiles.Add(invalidFilePath);
+            }
+        }
     }
 }

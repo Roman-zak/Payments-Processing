@@ -68,30 +68,29 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CsvParser.cs" />
+    <Compile Include="services\CsvParser.cs" />
     <Compile Include="models\Payer.cs" />
     <Compile Include="models\Service.cs" />
-    <Compile Include="FileExtension.cs" />
-    <Compile Include="IJsonWriter.cs" />
-    <Compile Include="IParseStrategy.cs" />
-    <Compile Include="ITransactionProcesser.cs" />
+    <Compile Include="services\IJsonWriter.cs" />
+    <Compile Include="services\IParseStrategy.cs" />
+    <Compile Include="services\ITransactionProcesser.cs" />
     <Compile Include="ProjectInstaller.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="ProjectInstaller.Designer.cs">
       <DependentUpon>ProjectInstaller.cs</DependentUpon>
     </Compile>
-    <Compile Include="FileDispatcher.cs">
+    <Compile Include="windowsServices\FileDispatcher.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="FileDispatcher.Designer.cs">
+    <Compile Include="windowsServices\FileDispatcher.Designer.cs">
       <DependentUpon>FileDispatcher.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TransactionJsonWriter.cs" />
-    <Compile Include="TransactionProcesser.cs" />
-    <Compile Include="TxtParser.cs" />
+    <Compile Include="services\TransactionJsonWriter.cs" />
+    <Compile Include="services\TransactionProcesser.cs" />
+    <Compile Include="services\TxtParser.cs" />
     <Compile Include="models\City.cs" />
   </ItemGroup>
   <ItemGroup>
