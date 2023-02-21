@@ -36,37 +36,6 @@ namespace Payments_Processing
             InitializeComponent();
         }
 
-        internal void StartConsole(string[] args)
-        {
-            this.OnStart(args);
-            string command = "";
-            while (true)
-            {
-                Console.WriteLine("\nPlease select an option:");
-                Console.WriteLine("[1] - Stop service");
-                Console.WriteLine("[2] - Reset service");
-
-                command = Console.ReadLine();
-
-                if (command == "1")
-                {
-                    Console.WriteLine("Stopping...");
-                    this.OnStop();
-                    break;
-                }
-                else if (command == "2")
-                {
-                    Console.WriteLine("Resetting...");
-                    //this.OnStop();
-                    this.OnStart(args);
-                    break;
-                }
-                else
-                {
-                    Console.WriteLine("Invalid option. Please try again.");
-                }
-            }
-        }
         protected override void OnStart(string[] args)
         {
             WriteDirectory = ConfigurationManager.AppSettings["writeDirectory"];

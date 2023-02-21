@@ -9,9 +9,6 @@ namespace Payments_Processing
 {
     internal static class Program
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
         static void Main(string[] args)
         {
             ServiceBase[] ServicesToRun;
@@ -20,15 +17,6 @@ namespace Payments_Processing
                             new FileDispatcher()
             };
             ServiceBase.Run(ServicesToRun);
-/*            if (Environment.UserInteractive)
-            {
-                FileDispatcher service1 = new FileDispatcher();
-                service1.StartConsole(args);
-            }
-            else
-            {
-                // Put the body of your old Main method here.  
-            }*/
         }
     }
 }
