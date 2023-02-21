@@ -28,10 +28,17 @@
         /// </summary>
         private void InitializeComponent()
         {
-            components = new System.ComponentModel.Container();
+            this.components = new System.ComponentModel.Container();
+            this.timer1 = new System.Windows.Forms.Timer(this.components);
+            // 
+            // FileDispatcher
+            // 
             this.ServiceName = "Service1";
+
         }
 
         #endregion
+
+        private System.Windows.Forms.Timer timer1;
     }
 }

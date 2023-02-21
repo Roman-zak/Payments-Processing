@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{9605F6ED-4B67-411C-A07B-8DDC2BD3A03D}</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <RootNamespace>Payments_Processing</RootNamespace>
     <AssemblyName>Payments_Processing</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
@@ -51,11 +51,15 @@
     <StartupObject>Payments_Processing.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.13.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Configuration.Install" />
     <Reference Include="System.Core" />
     <Reference Include="System.Management" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -65,10 +69,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CvvParser.cs" />
-    <Compile Include="IJsonWriter.cs" />
-    <Compile Include="IParseStrategy.cs" />
-    <Compile Include="ITransactionProcesser.cs" />
+    <Compile Include="Models\FileType.cs" />
+    <Compile Include="Services\ParserStrategy\CsvParser.cs" />
+    <Compile Include="Models\Payer.cs" />
+    <Compile Include="Models\Service.cs" />
+    <Compile Include="Services\Writers\IJsonWriter.cs" />
+    <Compile Include="Services\ParserStrategy\IParseStrategy.cs" />
+    <Compile Include="Services\TransactionProcessers\ITransactionProcesser.cs" />
     <Compile Include="ProjectInstaller.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -83,12 +90,18 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TransactionJsonWriter.cs" />
-    <Compile Include="TxtParser.cs" />
-    <Compile Include="UserTransactionsData.cs" />
+    <Compile Include="Services\Writers\TransactionJsonWriter.cs" />
+    <Compile Include="Services\TransactionProcessers\TransactionProcesser.cs" />
+    <Compile Include="Services\ParserStrategy\TxtParser.cs" />
+    <Compile Include="Models\City.cs" />
+    <Compile Include="Services\WatcherFactory\FileSystemWatcherFactory.cs" />
+    <Compile Include="Services\WatcherFactory\IFileSystemWatcherFactory.cs" />
+    <Compile Include="Services\WatcherFactory\TxtFileSystemWatcherFactory.cs" />
+    <Compile Include="Services\WatcherFactory\CsvFileSystemWatcherFactory.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.8">
@@ -103,9 +116,13 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="FileDispatcher.resx">
+      <DependentUpon>FileDispatcher.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="ProjectInstaller.resx">
       <DependentUpon>ProjectInstaller.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -14,21 +14,21 @@ namespace Payments_Processing
         /// </summary>
         static void Main(string[] args)
         {
-/*            ServiceBase[] ServicesToRun;
+            ServiceBase[] ServicesToRun;
             ServicesToRun = new ServiceBase[]
             {
-                            new Service1()
+                            new FileDispatcher()
             };
-            ServiceBase.Run(ServicesToRun);*/
-            if (Environment.UserInteractive)
+            ServiceBase.Run(ServicesToRun);
+/*            if (Environment.UserInteractive)
             {
                 FileDispatcher service1 = new FileDispatcher();
-                service1.TestStartupAndStop(args);
+                service1.StartConsole(args);
             }
             else
             {
                 // Put the body of your old Main method here.  
-            }
+            }*/
         }
     }
 }

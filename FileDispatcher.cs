@@ -9,96 +9,100 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
 using System.Configuration;
-
+using System.Threading;
+using Payments_Processing.watchers;
+using Payments_Processing.models;
 
 namespace Payments_Processing
 {
     [RunInstaller(true)]
-    public partial class FileDispatcher : ServiceBase, ITransactionProcesser
+    public partial class FileDispatcher : ServiceBase
     {
-        private static FileSystemWatcher Watcher;
-        private static IParseStrategy Parser;
-        private static IJsonWriter JsonWriter;
-        private static string WriteDirectory;
-        private static uint todayFileNumber;
+        private static ISet<FileSystemWatcher> watchers;
+        private static object _lock = new object();
+        private Timer timer;
+        public static string WriteDirectory { get; set; }
+        public string ReadDirectory { get; private set; }
 
+        private static int _parsedFilesCount;
+
+        private static int _parsedLinesCount;
+
+        private static int _foundErrorsCount;
+
+        private static ISet<string> _invalidFiles;
         public FileDispatcher()
         {
             InitializeComponent();
         }
 
-        internal void TestStartupAndStop(string[] args)
+        internal void StartConsole(string[] args)
         {
             this.OnStart(args);
             string command = "";
-            do
+            while (true)
             {
-                Console.WriteLine("To stop service - type STOP");
+                Console.WriteLine("\nPlease select an option:");
+                Console.WriteLine("[1] - Stop service");
+                Console.WriteLine("[2] - Reset service");
+
                 command = Console.ReadLine();
-            } while (command != "STOP");
-            this.OnStop();
+
+                if (command == "1")
+                {
+                    Console.WriteLine("Stopping...");
+                    this.OnStop();
+                    break;
+                }
+                else if (command == "2")
+                {
+                    Console.WriteLine("Resetting...");
+                    //this.OnStop();
+                    this.OnStart(args);
+                    break;
+                }
+                else
+                {
+                    Console.WriteLine("Invalid option. Please try again.");
+                }
+            }
         }
         protected override void OnStart(string[] args)
         {
-            Watcher = new FileSystemWatcher(ConfigurationManager.AppSettings["readDirectory"]);
             WriteDirectory = ConfigurationManager.AppSettings["writeDirectory"];
-            todayFileNumber = 0;
+            ReadDirectory = ConfigurationManager.AppSettings["readDirectory"];
+            FileSystemWatcherFactory fileSystemWatcherFactory = new FileSystemWatcherFactory();
 
-            Watcher.NotifyFilter = NotifyFilters.Attributes
-                                 | NotifyFilters.CreationTime
-                                 | NotifyFilters.DirectoryName
-                                 | NotifyFilters.FileName
-                                 | NotifyFilters.LastAccess
-                                 | NotifyFilters.LastWrite
-                                 | NotifyFilters.Security
-                                 | NotifyFilters.Size;
+            watchers = new HashSet<FileSystemWatcher>();
+            watchers.Add(fileSystemWatcherFactory.GetFactory(FileType.TXT).Create(ReadDirectory));
+            watchers.Add(fileSystemWatcherFactory.GetFactory(FileType.CSV).Create(ReadDirectory));
 
-            Watcher.Changed += OnChanged;
-            Watcher.Created += OnCreated;
-            Watcher.Deleted += OnDeleted;
-            Watcher.Renamed += OnRenamed;
-            Watcher.Error += OnError;
+            _invalidFiles=new HashSet<string>();
 
-            Watcher.Filter = "*.txt";
-            Watcher.IncludeSubdirectories = true;
-            Watcher.EnableRaisingEvents = true;
+            TimeSpan now = DateTime.Now.TimeOfDay;
+            TimeSpan dueTime = TimeSpan.FromHours(24) - now; // calculate time until next midnight
+            timer = new Timer(CreateMetaFile, null, (int)dueTime.TotalMilliseconds, (int)TimeSpan.FromHours(24).TotalMilliseconds);
+
         }
 
         protected override void OnStop()
         {
-            Watcher.Dispose();
+            watchers.ToList().ForEach(w => w.Dispose());
+
+            timer.Dispose();
         }
 
-        private static void OnChanged(object sender, FileSystemEventArgs e)
+        internal static void OnCreated(object sender, FileSystemEventArgs e)
         {
-            if (e.ChangeType != WatcherChangeTypes.Changed)
-            {
-                return;
-            }
-            Console.WriteLine($"Changed: {e.FullPath}");
+            string newFilePath = e.FullPath;
+
+            TransactionProcesser processer = new TransactionProcesser(new TransactionJsonWriter(), newFilePath);
+
+            Thread thread = new Thread(new ThreadStart(processer.processFile));
+
+            thread.Start();
         }
-
-        private static void OnCreated(object sender, FileSystemEventArgs e)
-        {
-            Console.WriteLine("created");
-            string value = $"Created: {e.FullPath}";
-            UserTransactionsData userTransactionsData = Parser.parce(e.FullPath);
-            string writeFilePath=WriteDirectory + DateTime.UtcNow.Date.ToString("dd-MM-yyyy")+todayFileNumber;
-            JsonWriter.writeToJson(ref writeFilePath, userTransactionsData); 
-            File.WriteAllText("WriteText.txt", value);
-        }
-
-        private static void OnDeleted(object sender, FileSystemEventArgs e) =>
-            Console.WriteLine($"Deleted: {e.FullPath}");
-
-        private static void OnRenamed(object sender, RenamedEventArgs e)
-        {
-            Console.WriteLine($"Renamed:");
-            Console.WriteLine($"    Old: {e.OldFullPath}");
-            Console.WriteLine($"    New: {e.FullPath}");
-        }
-
-        private static void OnError(object sender, ErrorEventArgs e) =>
+        internal static void OnError(object sender, ErrorEventArgs e) =>
             PrintException(e.GetException());
 
         private static void PrintException(Exception ex)
@@ -112,10 +116,66 @@ namespace Payments_Processing
                 PrintException(ex.InnerException);
             }
         }
-
-        public void setParser(IParseStrategy parseStrategy)
+        private static void CreateMetaFile(object source)
         {
-           Parser = parseStrategy;
+            string metaFilePath = GetMetaFilePath();
+
+            using (StreamWriter writer = new StreamWriter(metaFilePath))
+            {
+                writer.WriteLine("parsed_files: " + _parsedFilesCount);
+                writer.WriteLine("parsed_lines: " + _parsedLinesCount);
+                writer.WriteLine("found_errors: " + _foundErrorsCount);
+                writer.Write("invalid_files: [");
+                writer.Write(String.Join(", ", _invalidFiles));
+                writer.Write("]");
+            }
+            resetMetadataCounters();
+        }
+
+        private static void resetMetadataCounters()
+        {
+            lock (_lock)
+            {
+                _parsedFilesCount = 0;
+                _parsedLinesCount = 0;
+                _foundErrorsCount = 0;
+                _invalidFiles.Clear();
+            }
+        }
+
+        private static string GetMetaFilePath()
+        {
+            string directory = WriteDirectory + "/" + DateTime.UtcNow.Date.ToString("MM-dd-yyyy");
+            System.IO.Directory.CreateDirectory(directory);
+            return directory+"/meta.log" ;
+        }
+        public static void incrementParsedFilesCount()
+        {
+            lock (_lock)
+            {
+                _parsedFilesCount++;
+            }
+        }
+        public static void incrementParsedLinesCount()
+        {
+            lock (_lock)
+            {
+                _parsedLinesCount++;
+            }
+        }
+        public static void incrementFoundErrorsCount()
+        {
+            lock (_lock)
+            {
+                _foundErrorsCount++;
+            }
+        }
+        public static void addInvalidFile(string invalidFilePath)
+        {
+            lock (_lock)
+            {
+                _invalidFiles.Add(invalidFilePath);
+            }
         }
     }
 }

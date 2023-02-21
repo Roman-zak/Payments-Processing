@@ -8,6 +8,6 @@ namespace Payments_Processing
 {
     internal interface IJsonWriter
     {
-        void writeToJson(ref string  jsonPath, UserTransactionsData userTransactionsData);
+        void writeToJson(ref string  jsonPath, ISet<City> userTransactionsData);
     }
 }
