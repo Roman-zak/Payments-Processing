@@ -10,17 +10,19 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Configuration;
 using System.Threading;
+using Payments_Processing.watchers;
+using Payments_Processing.models;
 
 namespace Payments_Processing
 {
     [RunInstaller(true)]
     public partial class FileDispatcher : ServiceBase
     {
-        private static Dictionary<string, FileSystemWatcher> watchers;
+        private static ISet<FileSystemWatcher> watchers;
         private static object _lock = new object();
         private Timer timer;
-        public static string ReadDirectory { get; set; }
         public static string WriteDirectory { get; set; }
+        public string ReadDirectory { get; private set; }
 
         private static int _parsedFilesCount;
 
@@ -34,61 +36,63 @@ namespace Payments_Processing
             InitializeComponent();
         }
 
-        internal void TestStartupAndStop(string[] args)
+        internal void StartConsole(string[] args)
         {
             this.OnStart(args);
             string command = "";
-            do
+            while (true)
             {
-                Console.WriteLine("To stop service - type STOP");
+                Console.WriteLine("\nPlease select an option:");
+                Console.WriteLine("[1] - Stop service");
+                Console.WriteLine("[2] - Reset service");
+
                 command = Console.ReadLine();
-            } while (command != "STOP");
-            this.OnStop();
+
+                if (command == "1")
+                {
+                    Console.WriteLine("Stopping...");
+                    this.OnStop();
+                    break;
+                }
+                else if (command == "2")
+                {
+                    Console.WriteLine("Resetting...");
+                    //this.OnStop();
+                    this.OnStart(args);
+                    break;
+                }
+                else
+                {
+                    Console.WriteLine("Invalid option. Please try again.");
+                }
+            }
         }
         protected override void OnStart(string[] args)
         {
-            ReadDirectory = ConfigurationManager.AppSettings["readDirectory"];
             WriteDirectory = ConfigurationManager.AppSettings["writeDirectory"];
+            ReadDirectory = ConfigurationManager.AppSettings["readDirectory"];
+            FileSystemWatcherFactory fileSystemWatcherFactory = new FileSystemWatcherFactory();
 
-            watchers = new Dictionary<string, FileSystemWatcher>();
+            watchers = new HashSet<FileSystemWatcher>();
+            watchers.Add(fileSystemWatcherFactory.GetFactory(FileType.TXT).Create(ReadDirectory));
+            watchers.Add(fileSystemWatcherFactory.GetFactory(FileType.CSV).Create(ReadDirectory));
 
-            watchers.Add("*.txt", new FileSystemWatcher(ConfigurationManager.AppSettings["readDirectory"]));
-            watchers.Add("*.csv", new FileSystemWatcher(ConfigurationManager.AppSettings["readDirectory"]));
-
-            watchers.Select(w=> {
-                w.Value.NotifyFilter =NotifyFilters.Attributes
-                                 | NotifyFilters.CreationTime
-                                 | NotifyFilters.DirectoryName
-                                 | NotifyFilters.FileName
-                                 | NotifyFilters.LastAccess
-                                 | NotifyFilters.LastWrite
-                                 | NotifyFilters.Security
-                                 | NotifyFilters.Size;
-                w.Value.Created += OnCreated;
-                w.Value.Error += OnError;
-                w.Value.Filter = w.Key;
-                w.Value.IncludeSubdirectories = true;
-                w.Value.EnableRaisingEvents = true;
-
-                return w;
-                }).ToDictionary(w => w.Key, w => w.Value);
-           
             _invalidFiles=new HashSet<string>();
 
             TimeSpan now = DateTime.Now.TimeOfDay;
             TimeSpan dueTime = TimeSpan.FromHours(24) - now; // calculate time until next midnight
-            timer = new Timer(CreateMetaFile, dueTime, 15000, (int)TimeSpan.FromHours(24).TotalMilliseconds);
+            timer = new Timer(CreateMetaFile, null, (int)dueTime.TotalMilliseconds, (int)TimeSpan.FromHours(24).TotalMilliseconds);
 
         }
 
         protected override void OnStop()
         {
-            watchers.Values.ToList().ForEach(w => w.Dispose());
+            watchers.ToList().ForEach(w => w.Dispose());
 
             timer.Dispose();
         }
 
-        private static void OnCreated(object sender, FileSystemEventArgs e)
+        internal static void OnCreated(object sender, FileSystemEventArgs e)
         {
             string newFilePath = e.FullPath;
 
@@ -98,7 +102,7 @@ namespace Payments_Processing
 
             thread.Start();
         }
-        private static void OnError(object sender, ErrorEventArgs e) =>
+        internal static void OnError(object sender, ErrorEventArgs e) =>
             PrintException(e.GetException());
 
         private static void PrintException(Exception ex)

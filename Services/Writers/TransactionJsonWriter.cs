@@ -12,7 +12,7 @@ namespace Payments_Processing
 {
     internal class TransactionJsonWriter : IJsonWriter
     {
-        public void writeToJson(ref string jsonPath, List<City> userTransactionsData)
+        public void writeToJson(ref string jsonPath, ISet<City> userTransactionsData)
         {
             var json = JsonConvert.SerializeObject(userTransactionsData, Formatting.Indented);
             File.WriteAllText(jsonPath, json); ;

@@ -5,6 +5,6 @@ namespace Payments_Processing
 {
     public interface IParseStrategy
     {
-        List<City> parce(string file_path); 
+        ISet<City> parce(string file_path); 
     }
 }

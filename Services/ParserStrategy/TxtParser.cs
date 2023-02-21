@@ -12,9 +12,9 @@ namespace Payments_Processing
 {
     internal class TxtParser : IParseStrategy
     {
-        public List<City> parce(string file_path)
+        public ISet<City> parce(string file_path)
         {
-            var cities = new List<City>();
+            var cities = new HashSet<City>();
 
             using (var reader = new StreamReader(file_path))
             {
@@ -56,18 +56,33 @@ namespace Payments_Processing
                         continue;
                     }
 
-
                     if (currentCity == null || currentCity.Name != city)
-                    {
-                        currentCity = new City { Name = city };
-                        cities.Add(currentCity);
-                        currentService = null;
+                    { 
+                        var tempCity = new City { Name = city };
+                        if(cities.Contains(tempCity))
+                        {
+                            currentCity = cities.First(c=>c.Name== tempCity.Name);
+                        }
+                        else
+                        {
+                            currentCity = tempCity;
+                            cities.Add(currentCity);
+                            currentService = null;
+                        }
                     }
 
                     if (currentService == null || currentService.Name != service)
                     {
-                        currentService = new Service { Name = service };
-                        currentCity.Services.Add(currentService);
+                        var tempService = new Service { Name = service };
+                        if (currentCity.Services.Contains(tempService))
+                        {
+                            currentService = currentCity.Services.First(c => c.Name == tempService.Name);
+                        }
+                        else
+                        {
+                            currentService = tempService;
+                            currentCity.Services.Add(currentService);
+                        }
                     }
 
                     currentService.Payers.Add(new Payer

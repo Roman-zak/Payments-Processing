@@ -25,7 +25,7 @@ namespace Payments_Processing
         public void processFile()
         {
             mapParserToFile(FilePath);
-            List<City> userTransactionsData = parser.parce(FilePath);
+            ISet<City> userTransactionsData = parser.parce(FilePath);
 
             string writeFilePath = GetWriteFilePath();
             
